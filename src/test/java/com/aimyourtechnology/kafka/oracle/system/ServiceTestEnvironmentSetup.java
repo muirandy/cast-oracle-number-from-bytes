@@ -38,9 +38,10 @@ import static org.junit.jupiter.api.Assertions.fail;
 public abstract class ServiceTestEnvironmentSetup {
 
     private static final String KAFKA_KEY_DESERIALIZER = "org.apache.kafka.common.serialization.StringDeserializer";
-    private static final String KAFKA_VALUE_DESERIALIZER = "org.apache.kafka.common.serialization.StringDeserializer";
+    private static final String KAFKA_VALUE_DESERIALIZER = "io.confluent.kafka.serializers.KafkaAvroDeserializer";
+
     private static final String KAFKA_KEY_SERIALIZER = "org.apache.kafka.common.serialization.StringSerializer";
-    private static final String KAFKA_VALUE_SERIALIZER = "org.apache.kafka.common.serialization.StringSerializer";
+    private static final String KAFKA_VALUE_SERIALIZER = "io.confluent.kafka.serializers.KafkaAvroSerializer";
 
     private static final File dockerComposeFile =
             new File(ServiceTestEnvironmentSetup.class.getClassLoader().getResource("docker-compose-service.yml").getFile());
@@ -55,14 +56,15 @@ public abstract class ServiceTestEnvironmentSetup {
     protected String randomValue = generateRandomString();
     protected String orderId = generateRandomString();
 
-    private void createTopics() {
+    @BeforeEach
+    void createTopics() {
         AdminClient adminClient = AdminClient.create(getProperties());
 
         CreateTopicsResult createTopicsResult = adminClient.createTopics(getTopics(), new CreateTopicsOptions().timeoutMs(1000));
         Map<String, KafkaFuture<Void>> futureResults = createTopicsResult.values();
         futureResults.values().forEach(f -> {
             try {
-                f.get(1000, TimeUnit.MILLISECONDS);
+                f.get(2000, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             } catch (ExecutionException e) {
@@ -87,11 +89,6 @@ public abstract class ServiceTestEnvironmentSetup {
         return topicNames;
     }
 
-    @BeforeEach
-    public void setup() {
-        createTopics();
-    }
-
     private void waitForDockerEnvironment() {
         try {
             Thread.sleep(1000);
@@ -100,8 +97,8 @@ public abstract class ServiceTestEnvironmentSetup {
         }
     }
 
-    ProducerRecord createKafkaProducerRecord(Supplier<String> stringGenerator) {
-        return new ProducerRecord(getInputTopic(), orderId, stringGenerator.get());
+    ProducerRecord createKafkaProducerRecord(Supplier<GenericRecord> avroGenerator) {
+        return new ProducerRecord(getInputTopic(), orderId, avroGenerator.get());
     }
 
     ConsumerRecords<String, String> pollForResults() {
@@ -145,6 +142,7 @@ public abstract class ServiceTestEnvironmentSetup {
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, KAFKA_KEY_SERIALIZER);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KAFKA_VALUE_SERIALIZER);
+        props.put("schema.registry.url", "http://localhost:8081");
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KAFKA_VALUE_DESERIALIZER);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, KAFKA_KEY_DESERIALIZER);
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "100");
@@ -158,11 +156,19 @@ public abstract class ServiceTestEnvironmentSetup {
     }
 
     protected String generateRandomString() {
-        return String.valueOf(new Random().nextLong());
+        return "" + Math.abs(new Random().nextLong());
     }
 
-    protected void writeMessageToInputTopic(Supplier<String> stringSupplier) throws ExecutionException, InterruptedException {
-        new KafkaProducer<String, String>(getProperties()).send(createKafkaProducerRecord(stringSupplier)).get();
+    protected void writeMessageToInputTopic(Supplier<GenericRecord> avroSupplier) {
+        try {
+            KafkaProducer<String, GenericRecord> kafkaProducer = new KafkaProducer<>(getProperties());
+            ProducerRecord kafkaProducerRecord = createKafkaProducerRecord(avroSupplier);
+            kafkaProducer.send(kafkaProducerRecord).get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
     }
 
     protected void assertKafkaMessage(Consumer<ConsumerRecord<String, String>> consumerRecordConsumer) {
