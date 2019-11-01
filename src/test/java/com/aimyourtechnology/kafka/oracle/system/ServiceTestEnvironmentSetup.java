@@ -42,13 +42,14 @@ public abstract class ServiceTestEnvironmentSetup {
     private static final String KAFKA_KEY_SERIALIZER = "org.apache.kafka.common.serialization.StringSerializer";
     private static final String KAFKA_VALUE_SERIALIZER = "org.apache.kafka.common.serialization.StringSerializer";
 
-    private static final File dockerComposeFile = new File(ServiceTestEnvironmentSetup.class.getClassLoader().getResource("docker-compose" +
-            "-service.yml").getFile());
+    private static final File dockerComposeFile =
+            new File(ServiceTestEnvironmentSetup.class.getClassLoader().getResource("docker-compose-service.yml").getFile());
 
     @Container
     public static DockerComposeContainer container =
             new DockerComposeContainer(dockerComposeFile)
-                    .waitingFor("broker", Wait.forLogMessage(".*started.*\\n", 1))
+                    .waitingFor("broker_1", Wait.forLogMessage(".*started.*\\n", 1)
+                    .withStartupTimeout(Duration.ofSeconds(120)))
                     .withLocalCompose(true);
 
     protected String randomValue = generateRandomString();
@@ -136,7 +137,7 @@ public abstract class ServiceTestEnvironmentSetup {
     protected abstract String getOutputTopic();
 
     Properties getProperties() {
-        String bootstrapServers = "http://broker:9092";
+        String bootstrapServers = "http://localhost:9092";
 
         Properties props = new Properties();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);

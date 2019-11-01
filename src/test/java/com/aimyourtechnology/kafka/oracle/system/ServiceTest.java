@@ -3,18 +3,17 @@ package com.aimyourtechnology.kafka.oracle.system;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaMetadata;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.junit.jupiter.api.Test;
-import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 
 import java.io.IOException;
-import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static sun.security.x509.X509CertInfo.SUBJECT;
 
 public class ServiceTest extends ServiceTestEnvironmentSetup {
     private static final String INPUT_TOPIC = "input";
@@ -33,9 +32,9 @@ public class ServiceTest extends ServiceTestEnvironmentSetup {
     }
 
     private void assertValueContainsInteger() {
-        obtainSchema();
-
-        Consumer<ConsumerRecord<String, GenericRecord>> topicConsumer = cr -> assertRecordValueAvro(cr);
+        ConsumerRecords<String, GenericRecord> records = pollForAvroResults();
+        assertEquals(1, records.count());
+        //        Consumer<ConsumerRecord<String, GenericRecord>> topicConsumer = cr -> assertRecordValueAvro(cr);
 //        assertAvroKafkaMessage(consumerRecordConsumer);
     }
 
@@ -52,9 +51,10 @@ public class ServiceTest extends ServiceTestEnvironmentSetup {
         message.put("amount", 1000);
         return message;
     }
-    private void obtainSchema() {
+
+    private void obtainSchema(String subject) {
         try {
-            readSchemaFromSchemaRegistry();
+            readSchemaFromSchemaRegistry(subject);
         } catch (IOException e) {
             System.err.println(e);
             throw new SchemaRegistryIoException(e);
@@ -64,9 +64,9 @@ public class ServiceTest extends ServiceTestEnvironmentSetup {
         }
     }
 
-    private void readSchemaFromSchemaRegistry() throws IOException, RestClientException {
+    private void readSchemaFromSchemaRegistry(String subject) throws IOException, RestClientException {
         SchemaRegistryClient schemaRegistryClient = new CachedSchemaRegistryClient(getSchemaRegistryUrl(), 20);
-        SchemaMetadata schemaMetadata = schemaRegistryClient.getSchemaMetadata(SUBJECT, SUBJECT_VERSION_1);
+        SchemaMetadata schemaMetadata = schemaRegistryClient.getSchemaMetadata(subject, SUBJECT_VERSION_1);
         schema = schemaRegistryClient.getById(schemaMetadata.getId());
     }
 
