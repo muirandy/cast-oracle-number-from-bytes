@@ -24,7 +24,7 @@ public class ServiceTest extends ServiceTestEnvironmentSetup {
     private static final int SUBJECT_VERSION_1 = 1;
 
     @Test
-    void t() {
+    void bytesAreCastToInteger() {
         createSchemaForInputTopic();
         createSchemaForOutputTopic();
         writeMessageToInputTopic(this::createInputAvroMessage);
