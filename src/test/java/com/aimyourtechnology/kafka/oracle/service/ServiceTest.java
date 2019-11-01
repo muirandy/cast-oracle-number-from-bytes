@@ -1,4 +1,4 @@
-package com.aimyourtechnology.kafka.oracle.system;
+package com.aimyourtechnology.kafka.oracle.service;
 
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaMetadata;

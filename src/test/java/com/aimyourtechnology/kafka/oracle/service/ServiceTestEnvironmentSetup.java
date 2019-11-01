@@ -1,4 +1,4 @@
-package com.aimyourtechnology.kafka.oracle.system;
+package com.aimyourtechnology.kafka.oracle.service;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.admin.AdminClient;
