@@ -10,13 +10,11 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -24,63 +22,6 @@ public class ServiceTest extends ServiceTestEnvironmentSetup {
     private static final String INPUT_TOPIC = "input";
     private static final String OUTPUT_TOPIC = "output";
     private static final int SUBJECT_VERSION_1 = 1;
-    private static final boolean SUBJECTS_RETRIEVED_SUCCESSFULLY = true;
-    private static final boolean SUBJECTS_NOT_RETRIEVED = false;
-    private static final int SECONDS_TO_WAIT_FOR_SCHEMA_REGISTRY_TO_START = 60;
-    private int schemaRegistryRetryCount = 0;
-
-    @BeforeEach
-    void setUp() {
-        ensureSchemaRegistryIsReady();
-    }
-
-    private void ensureSchemaRegistryIsReady() {
-        SchemaRegistryClient schemaRegistryClient = new CachedSchemaRegistryClient(getSchemaRegistryUrl(), 20);
-        initialiseRetryCount();
-        while (true) {
-            if (tryToRetrieveSubjects(schemaRegistryClient))
-                break;
-
-            if (schemRegistryRetryCountExceeded())
-                throw new SchemaRegistryNotRespondingException();
-
-            giveSchemaRegistryAnOpportunityToStart();
-            incrementRetryCount();
-        }
-    }
-
-    private String getSchemaRegistryUrl() {
-        return "http://localhost:8081";
-    }
-
-    private void initialiseRetryCount() {
-        schemaRegistryRetryCount = 0;
-    }
-
-    private void giveSchemaRegistryAnOpportunityToStart() {
-        try {
-            TimeUnit.SECONDS.sleep(1);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private boolean tryToRetrieveSubjects(SchemaRegistryClient schemaRegistryClient) {
-        try {
-            schemaRegistryClient.getAllSubjects();
-            return SUBJECTS_RETRIEVED_SUCCESSFULLY;
-        } catch (IOException | RestClientException e) {
-            return SUBJECTS_NOT_RETRIEVED;
-        }
-    }
-
-    private void incrementRetryCount() {
-        schemaRegistryRetryCount++;
-    }
-
-    private boolean schemRegistryRetryCountExceeded() {
-        return schemaRegistryRetryCount >= SECONDS_TO_WAIT_FOR_SCHEMA_REGISTRY_TO_START;
-    }
 
     @Test
     void bytesAreCastToInteger() {
@@ -207,9 +148,4 @@ public class ServiceTest extends ServiceTestEnvironmentSetup {
         }
     }
 
-    private class SchemaRegistryNotRespondingException extends RuntimeException {
-        private SchemaRegistryNotRespondingException() {
-            super("Waited for " + SECONDS_TO_WAIT_FOR_SCHEMA_REGISTRY_TO_START + " seconds but still no Schema Registry!");
-        }
-    }
 }

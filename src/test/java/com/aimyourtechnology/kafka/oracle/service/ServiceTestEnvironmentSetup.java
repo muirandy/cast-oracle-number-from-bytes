@@ -1,5 +1,8 @@
 package com.aimyourtechnology.kafka.oracle.service;
 
+import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsOptions;
@@ -20,6 +23,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.io.File;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -45,6 +49,9 @@ public abstract class ServiceTestEnvironmentSetup {
 
     private static final File dockerComposeFile =
             new File(ServiceTestEnvironmentSetup.class.getClassLoader().getResource("docker-compose-service.yml").getFile());
+    private static final boolean SUBJECTS_RETRIEVED_SUCCESSFULLY = true;
+    private static final boolean SUBJECTS_NOT_RETRIEVED = false;
+    private static final int SECONDS_TO_WAIT_FOR_SCHEMA_REGISTRY_TO_START = 60;
 
     @Container
     public static DockerComposeContainer container =
@@ -55,6 +62,7 @@ public abstract class ServiceTestEnvironmentSetup {
 
     protected String randomValue = generateRandomString();
     protected String orderId = generateRandomString();
+    private int schemaRegistryRetryCount = 0;
 
     @BeforeEach
     void createTopics() {
@@ -129,6 +137,59 @@ public abstract class ServiceTestEnvironmentSetup {
         return consumer;
     }
 
+    @BeforeEach
+    void setUp() {
+        ensureSchemaRegistryIsReady();
+    }
+
+    private void ensureSchemaRegistryIsReady() {
+        SchemaRegistryClient schemaRegistryClient = new CachedSchemaRegistryClient(getSchemaRegistryUrl(), 20);
+        initialiseRetryCount();
+        while (true) {
+            if (tryToRetrieveSubjects(schemaRegistryClient))
+                break;
+
+            if (schemRegistryRetryCountExceeded())
+                throw new SchemaRegistryNotRespondingException();
+
+            giveSchemaRegistryAnOpportunityToStart();
+            incrementRetryCount();
+        }
+    }
+
+    protected String getSchemaRegistryUrl() {
+        return "http://localhost:8081";
+    }
+
+    private void initialiseRetryCount() {
+        schemaRegistryRetryCount = 0;
+    }
+
+    private void giveSchemaRegistryAnOpportunityToStart() {
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private boolean tryToRetrieveSubjects(SchemaRegistryClient schemaRegistryClient) {
+        try {
+            schemaRegistryClient.getAllSubjects();
+            return SUBJECTS_RETRIEVED_SUCCESSFULLY;
+        } catch (IOException | RestClientException e) {
+            return SUBJECTS_NOT_RETRIEVED;
+        }
+    }
+
+    private void incrementRetryCount() {
+        schemaRegistryRetryCount++;
+    }
+
+    private boolean schemRegistryRetryCountExceeded() {
+        return schemaRegistryRetryCount >= SECONDS_TO_WAIT_FOR_SCHEMA_REGISTRY_TO_START;
+    }
+
     protected abstract String getInputTopic();
 
     protected abstract String getOutputTopic();
@@ -182,5 +243,11 @@ public abstract class ServiceTestEnvironmentSetup {
         expectedConsumerRecord.ifPresent(consumerRecordConsumer);
         if (!expectedConsumerRecord.isPresent())
             fail("Did not find expected record");
+    }
+
+    private class SchemaRegistryNotRespondingException extends RuntimeException {
+        private SchemaRegistryNotRespondingException() {
+            super("Waited for " + SECONDS_TO_WAIT_FOR_SCHEMA_REGISTRY_TO_START + " seconds but still no Schema Registry!");
+        }
     }
 }
