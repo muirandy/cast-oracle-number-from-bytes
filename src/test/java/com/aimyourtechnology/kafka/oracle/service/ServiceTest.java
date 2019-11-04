@@ -36,13 +36,17 @@ public class ServiceTest extends ServiceTestEnvironmentSetup {
 
     private void ensureSchemaRegistryIsReady() {
         SchemaRegistryClient schemaRegistryClient = new CachedSchemaRegistryClient(getSchemaRegistryUrl(), 20);
-        boolean schemaRegistryIsReady = false;
         initialiseRetryCount();
-        do {
+        while (true) {
+            if (tryToRetrieveSubjects(schemaRegistryClient))
+                break;
+
+            if (schemRegistryRetryCountExceeded())
+                throw new SchemaRegistryNotRespondingException();
+
             giveSchemaRegistryAnOpportunityToStart();
-            schemaRegistryIsReady = tryToRetrieveSubjects(schemaRegistryClient);
             incrementRetryCount();
-        } while (!schemaRegistryIsReady && !schemRegistryRetryCountExceeded());
+        }
     }
 
     private String getSchemaRegistryUrl() {
@@ -200,6 +204,12 @@ public class ServiceTest extends ServiceTestEnvironmentSetup {
 
     private class SchemaRegistryClientException extends RuntimeException {
         public SchemaRegistryClientException(RestClientException e) {
+        }
+    }
+
+    private class SchemaRegistryNotRespondingException extends RuntimeException {
+        private SchemaRegistryNotRespondingException() {
+            super("Waited for " + SECONDS_TO_WAIT_FOR_SCHEMA_REGISTRY_TO_START + " seconds but still no Schema Registry!");
         }
     }
 }
