@@ -18,7 +18,7 @@ import java.nio.ByteBuffer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class ServiceTest extends ServiceTestEnvironmentSetup {
+public class ServiceShould extends ServiceTestEnvironmentSetup {
     private static final String INPUT_TOPIC = "input";
     private static final String OUTPUT_TOPIC = "output";
     private static final int SUBJECT_VERSION_1 = 1;
@@ -81,8 +81,11 @@ public class ServiceTest extends ServiceTestEnvironmentSetup {
     private void assertValueContainsInteger() {
         ConsumerRecords<String, GenericRecord> records = pollForAvroResults();
         assertEquals(1, records.count());
-        //        Consumer<ConsumerRecord<String, GenericRecord>> topicConsumer = cr -> assertRecordValueAvro(cr);
-        //        records.forEach(topicConsumer);
+        ConsumerRecord<String, GenericRecord> outputRecord = records.iterator().next();
+        assertEquals(orderId, outputRecord.key());
+        GenericRecord value = outputRecord.value();
+        Integer integer = (Integer)value.get("amount");
+        assertEquals(1000, integer);
     }
 
     private GenericRecord createInputAvroMessage() {
