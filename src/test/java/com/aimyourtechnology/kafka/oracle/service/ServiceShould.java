@@ -22,6 +22,7 @@ public class ServiceShould extends ServiceTestEnvironmentSetup {
     private static final String INPUT_TOPIC = "input";
     private static final String OUTPUT_TOPIC = "output";
     private static final int SUBJECT_VERSION_1 = 1;
+    private static final int EXPECTED_INTEGER = 1000;
 
     @Test
     void bytesAreCastToInteger() {
@@ -85,15 +86,14 @@ public class ServiceShould extends ServiceTestEnvironmentSetup {
         assertEquals(orderId, outputRecord.key());
         GenericRecord value = outputRecord.value();
         Integer integer = (Integer)value.get("amount");
-        assertEquals(1000, integer);
+        assertEquals(EXPECTED_INTEGER, integer);
     }
 
     private GenericRecord createInputAvroMessage() {
         Schema inputSchema = obtainSchema(INPUT_TOPIC + "-value");
         GenericRecord message = new GenericData.Record(inputSchema);
-        byte[] bytes = new BigInteger("1000").toByteArray();
+        byte[] bytes = new BigInteger("" + EXPECTED_INTEGER).toByteArray();
         ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-        //        message.put("root", );
         message.put("id", orderId);
         message.put("amount", byteBuffer);
         return message;
