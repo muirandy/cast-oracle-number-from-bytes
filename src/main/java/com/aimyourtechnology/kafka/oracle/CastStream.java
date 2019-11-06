@@ -16,6 +16,7 @@ import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.kstream.ValueMapper;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Produces;
@@ -26,6 +27,10 @@ import java.util.function.Function;
 
 @ApplicationScoped
 public class CastStream {
+
+    @ConfigProperty(name = "schema.registry.url")
+    private String schemaRegistryUrl;
+
     private static final String APP_NAME = "castOracleNumberFromBytes";
     private static final String INPUT_TOPIC = "input";
     private static final String OUTPUT_TOPIC = "output";
@@ -37,7 +42,7 @@ public class CastStream {
         GenericAvroSerde valueSerde = new GenericAvroSerde();
         Map<String, String> serdeConfig = new HashMap<>();
         serdeConfig.put(AbstractKafkaAvroSerDeConfig.AUTO_REGISTER_SCHEMAS, "false");
-        serdeConfig.put("schema.registry.url", "http://schema-registry:8081");
+        serdeConfig.put("schema.registry.url", schemaRegistryUrl);
         valueSerde.configure(serdeConfig, false);
         KStream<String, GenericRecord> inputStream = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), valueSerde));
         KStream<String, GenericRecord> integerCastStream = inputStream.mapValues(mapper);
@@ -71,7 +76,7 @@ public class CastStream {
     }
 
     private Schema readSchemaFromSchemaRegistry(String subject) throws IOException, RestClientException {
-        SchemaRegistryClient schemaRegistryClient = new CachedSchemaRegistryClient("http://schema-registry:8081", 20);
+        SchemaRegistryClient schemaRegistryClient = new CachedSchemaRegistryClient(schemaRegistryUrl, 20);
         SchemaMetadata schemaMetadata = schemaRegistryClient.getSchemaMetadata(subject, 1);
         return schemaRegistryClient.getById(schemaMetadata.getId());
     }
