@@ -50,20 +50,20 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: 'zookeeper:2181'
 
-#  cast-oracle-number-from-bytes:
-#    image: quarkus/cast-oracle-number-from-bytes:latest
-#    hostname: cast-oracle-number-from-bytes
-#    depends_on:
-#      - schema-registry
-#    environment:
-#      kafka-streams.allow.auto.create.topics: "false"
-#      kafka-streams.request.timeout.ms: 180000
-#      KAFKA_BROKER_SERVER: broker
-#      KAFKA_BROKER_PORT: 29092
-#      INPUT_KAFKA_TOPIC: "input"
-#      OUTPUT_KAFKA_TOPIC: "output"
-#      APP_NAME: "castOracleNumberFromBytes"
-#    command: dockerize -wait http://schema-registry:8081/subjects -timeout 240s /work/application -Dquarkus.http.host=0.0.0.0
+  cast-oracle-number-from-bytes:
+    image: quarkus/cast-oracle-number-from-bytes:latest
+    hostname: cast-oracle-number-from-bytes
+    depends_on:
+      - schema-registry
+    environment:
+      kafka-streams.allow.auto.create.topics: "false"
+      kafka-streams.request.timeout.ms: 180000
+      KAFKA_BROKER_SERVER: broker
+      KAFKA_BROKER_PORT: 29092
+      INPUT_KAFKA_TOPIC: "input"
+      OUTPUT_KAFKA_TOPIC: "output"
+      APP_NAME: "castOracleNumberFromBytes"
+    command: dockerize -wait http://schema-registry:8081/subjects -timeout 240s /work/application -Dquarkus.http.host=0.0.0.0
 
 networks:
   default:

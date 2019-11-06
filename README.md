@@ -17,6 +17,13 @@ docker exec -it CONTAINER_ID kafka-console-consumer --bootstrap-server broker:90
 ```
 docker run -it --rm --network=faith edenhill/kafkacat:1.5.0 kafkacat -b broker:29092 -o beginning -r http://schema-registry:8081 -s avro -t input
 ```
+## JVM Image on Docker
+### Build
+```
+mvn clean package
+docker build -f src/main/docker/jvm/Dockerfile -t quarkus/cast-oracle-number-from-bytes .
+```
+
 ### Run
 ```
 ./macJdk.sh
@@ -26,5 +33,5 @@ docker run -it --rm --network=faith edenhill/kafkacat:1.5.0 kafkacat -b broker:2
 ### Build
 ```
 ./mvnw package -Pnative -Dquarkus.native.container-build=true
-docker build -f src/main/docker/files/Dockerfile -t quarkus/cast-oracle-number-from-bytes .
+docker build -f src/main/docker/native/Dockerfile -t quarkus/cast-oracle-number-from-bytes .
 ```
