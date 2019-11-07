@@ -50,14 +50,17 @@ public class ServiceShould extends ServiceTestEnvironmentSetup {
     }
 
     private Schema createInputByteSchema() {
+        Schema nested = SchemaBuilder.record("A")
+                .fields()
+                .requiredString("id")
+                .requiredBytes("amount")
+                .endRecord();
+
         return SchemaBuilder.record("root")
                 .fields()
-                .name("id")
-                .type(Schema.create(Schema.Type.STRING))
-                .noDefault()
-                .name("amount")
-                .type(Schema.create(Schema.Type.BYTES))
-                .noDefault()
+                .requiredString("id")
+                .requiredBytes("amount")
+                .name("A").type(nested).noDefault()
                 .endRecord();
     }
 
@@ -66,14 +69,17 @@ public class ServiceShould extends ServiceTestEnvironmentSetup {
     }
 
     private Schema createOutputIntegerSchema() {
+        Schema nested = SchemaBuilder.record("A")
+                .fields()
+                .requiredString("id")
+                .requiredInt("amount")
+                .endRecord();
+
         return SchemaBuilder.record("root")
                 .fields()
-                .name("id")
-                .type(Schema.create(Schema.Type.STRING))
-                .noDefault()
-                .name("amount")
-                .type(Schema.create(Schema.Type.INT))
-                .noDefault()
+                .requiredString("id")
+                .requiredInt("amount")
+                .name("A").type(nested).noDefault()
                 .endRecord();
     }
 
@@ -84,6 +90,14 @@ public class ServiceShould extends ServiceTestEnvironmentSetup {
 
         assertEquals(orderId, outputRecord.key());
         assertValueContainsInteger(outputRecord);
+        assertNestedValue(outputRecord);
+    }
+
+    private void assertNestedValue(ConsumerRecord<String, GenericRecord> outputRecord) {
+        GenericRecord value = outputRecord.value();
+        GenericRecord a = (GenericRecord)value.get("A");
+        assertEquals(orderId, a.get("id").toString());
+        assertEquals(expectedInteger, (Integer)a.get("amount"));
     }
 
     private void assertValueContainsInteger(ConsumerRecord<String, GenericRecord> outputRecord) {
@@ -99,6 +113,12 @@ public class ServiceShould extends ServiceTestEnvironmentSetup {
         ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
         message.put("id", orderId);
         message.put("amount", byteBuffer);
+
+        GenericRecord nestedRecord = new GenericData.Record(inputSchema.getField("A").schema());
+        nestedRecord.put("id", orderId);
+        nestedRecord.put("amount", byteBuffer);
+
+        message.put("A", nestedRecord);
         return message;
     }
 
