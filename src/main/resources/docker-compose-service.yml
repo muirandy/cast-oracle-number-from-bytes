@@ -58,11 +58,10 @@ services:
     environment:
       kafka-streams.allow.auto.create.topics: "false"
       kafka-streams.request.timeout.ms: 180000
-      KAFKA_BROKER_SERVER: broker
-      KAFKA_BROKER_PORT: 29092
+      KAFKA_BROKERS: broker:29092
+      APP_NAME: "castOracleNumberFromBytes"
       INPUT_KAFKA_TOPIC: "input"
       OUTPUT_KAFKA_TOPIC: "output"
-      APP_NAME: "castOracleNumberFromBytes"
       CASTS: "amount:Integer,A.amount:Integer"
     command: dockerize -wait http://schema-registry:8081/subjects/input-value/versions/1 -wait http://schema-registry:8081/subjects/output-value/versions/1 -timeout 240s /deployments/run-java.sh -Dquarkus.http.host=0.0.0.0
 

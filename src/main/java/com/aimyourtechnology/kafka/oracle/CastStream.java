@@ -28,6 +28,15 @@ import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class CastStream {
+    private static final String DO_NOT_AUTO_REGISTER_SCHEMAS = "false";
+    private static final boolean SERDE_IS_FOR_RECORD_VALUES = false;
+    private static final String SERDE_CONFIG_SCHEMA_REGISTRY_URL = "schema.registry.url";
+
+    @ConfigProperty(name = "inputKafkaTopic")
+    String inputKafkaTopic;
+
+    @ConfigProperty(name = "outputKafkaTopic")
+    String outputKafkaTopic;
 
     @ConfigProperty(name = "schema.registry.url")
     private String schemaRegistryUrl;
@@ -35,10 +44,6 @@ public class CastStream {
     @ConfigProperty(name = "CASTS", defaultValue = "")
     private String castString;
 
-
-    private static final String APP_NAME = "castOracleNumberFromBytes";
-    private static final String INPUT_TOPIC = "input";
-    private static final String OUTPUT_TOPIC = "output";
     private Map<String, String> casts;
 
     @Produces
@@ -46,20 +51,25 @@ public class CastStream {
         createCasts();
         StreamsBuilder builder = new StreamsBuilder();
         ValueMapper<GenericRecord, GenericRecord> mapper = createValueMapper();
-        GenericAvroSerde valueSerde = new GenericAvroSerde();
-        Map<String, String> serdeConfig = new HashMap<>();
-        serdeConfig.put(AbstractKafkaAvroSerDeConfig.AUTO_REGISTER_SCHEMAS, "false");
-        serdeConfig.put("schema.registry.url", schemaRegistryUrl);
-        valueSerde.configure(serdeConfig, false);
-        KStream<String, GenericRecord> inputStream = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(),
-                valueSerde));
+        GenericAvroSerde valueSerde = createAvroSerde();
+        KStream<String, GenericRecord> inputStream =
+                builder.stream(inputKafkaTopic, Consumed.with(Serdes.String(), valueSerde));
         KStream<String, GenericRecord> integerCastStream = inputStream.mapValues(mapper);
-        integerCastStream.to(OUTPUT_TOPIC, Produced.with(Serdes.String(), valueSerde));
+        integerCastStream.to(outputKafkaTopic, Produced.with(Serdes.String(), valueSerde));
         return builder.build();
     }
 
+    private GenericAvroSerde createAvroSerde() {
+        Map<String, String> serdeConfig = new HashMap<>();
+        serdeConfig.put(AbstractKafkaAvroSerDeConfig.AUTO_REGISTER_SCHEMAS, DO_NOT_AUTO_REGISTER_SCHEMAS);
+        serdeConfig.put(SERDE_CONFIG_SCHEMA_REGISTRY_URL, schemaRegistryUrl);
+        GenericAvroSerde valueSerde = new GenericAvroSerde();
+        valueSerde.configure(serdeConfig, SERDE_IS_FOR_RECORD_VALUES);
+        return valueSerde;
+    }
+
     private ValueMapper<GenericRecord, GenericRecord> createValueMapper() {
-        Schema outputSchema = obtainSchema(OUTPUT_TOPIC + "-value");
+        Schema outputSchema = obtainSchema(outputKafkaTopic + "-value");
         StructRebuilder structRebuilder = new StructRebuilder(outputSchema, casts);
         Function<GenericRecord, GenericRecord> transformRecord = structRebuilder::transformAvroMessage;
         return transformRecord::apply;
