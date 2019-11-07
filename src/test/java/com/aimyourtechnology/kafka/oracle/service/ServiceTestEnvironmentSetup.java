@@ -109,31 +109,15 @@ public abstract class ServiceTestEnvironmentSetup {
         return new ProducerRecord(getInputTopic(), orderId, avroGenerator.get());
     }
 
-    ConsumerRecords<String, String> pollForResults() {
-        KafkaConsumer<String, String> consumer = createKafkaConsumer(getProperties());
-        Duration duration = Duration.ofSeconds(4);
-        return consumer.poll(duration);
-    }
-
     ConsumerRecords<String, GenericRecord> pollForAvroResults() {
         KafkaConsumer<String, GenericRecord> consumer = createKafkaAvroConsumer(getProperties());
-        Duration duration = Duration.ofSeconds(4);
+        Duration duration = Duration.ofSeconds(10);
         return consumer.poll(duration);
-    }
-
-    private KafkaConsumer<String, String> createKafkaConsumer(Properties props) {
-        KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
-        consumer.subscribe(Collections.singletonList(getOutputTopic()));
-        Duration immediately = Duration.ofSeconds(0);
-        consumer.poll(immediately);
-        return consumer;
     }
 
     private KafkaConsumer<String, GenericRecord> createKafkaAvroConsumer(Properties props) {
         KafkaConsumer<String, GenericRecord> consumer = new KafkaConsumer<>(props);
         consumer.subscribe(Collections.singletonList(getOutputTopic()));
-        Duration immediately = Duration.ofSeconds(0);
-        consumer.poll(immediately);
         return consumer;
     }
 
@@ -209,6 +193,7 @@ public abstract class ServiceTestEnvironmentSetup {
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "100");
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         props.put(ConsumerConfig.GROUP_ID_CONFIG, this.getClass().getName());
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 1);
         return props;
     }
 
@@ -230,19 +215,6 @@ public abstract class ServiceTestEnvironmentSetup {
         } catch (ExecutionException e) {
             e.printStackTrace();
         }
-    }
-
-    protected void assertKafkaMessage(Consumer<ConsumerRecord<String, String>> consumerRecordConsumer) {
-        ConsumerRecords<String, String> recs = pollForResults();
-        assertFalse(recs.isEmpty());
-
-        Spliterator<ConsumerRecord<String, String>> spliterator = Spliterators.spliteratorUnknownSize(recs.iterator(), 0);
-        Stream<ConsumerRecord<String, String>> consumerRecordStream = StreamSupport.stream(spliterator, false);
-        Optional<ConsumerRecord<String, String>> expectedConsumerRecord = consumerRecordStream.filter(cr -> foundExpectedRecord(cr.key()))
-                                                                                              .findAny();
-        expectedConsumerRecord.ifPresent(consumerRecordConsumer);
-        if (!expectedConsumerRecord.isPresent())
-            fail("Did not find expected record");
     }
 
     private class SchemaRegistryNotRespondingException extends RuntimeException {

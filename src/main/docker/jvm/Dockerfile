@@ -39,4 +39,5 @@ EXPOSE 8080
 #  && chown -R 1001:root /deployments
 #USER 1001
 
-ENTRYPOINT [ "/deployments/run-java.sh" ]
+CMD ["/deployments/run-java.sh", "-Dquarkus.http.host=0.0.0.0"]
+#ENTRYPOINT [ "/deployments/run-java.sh" ]

@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -22,7 +23,8 @@ public class ServiceShould extends ServiceTestEnvironmentSetup {
     private static final String INPUT_TOPIC = "input";
     private static final String OUTPUT_TOPIC = "output";
     private static final int SUBJECT_VERSION_1 = 1;
-    private static final int EXPECTED_INTEGER = 1000;
+
+    private int expectedInteger = Math.abs(new Random().nextInt());
 
     @Test
     void bytesAreCastToInteger() {
@@ -33,10 +35,10 @@ public class ServiceShould extends ServiceTestEnvironmentSetup {
     }
 
     private void createSchemaForInputTopic() {
-        createSchema(INPUT_TOPIC + "-value", createInputByteSchema());
+        registerSchema(INPUT_TOPIC + "-value", createInputByteSchema());
     }
 
-    private void createSchema(String subject, Schema schema) {
+    private void registerSchema(String subject, Schema schema) {
         try {
             SchemaRegistryClient schemaRegistryClient = new CachedSchemaRegistryClient(getSchemaRegistryUrl(), 20);
             schemaRegistryClient.register(subject, schema);
@@ -60,7 +62,7 @@ public class ServiceShould extends ServiceTestEnvironmentSetup {
     }
 
     private void createSchemaForOutputTopic() {
-        createSchema(OUTPUT_TOPIC + "-value", createOutputIntegerSchema());
+        registerSchema(OUTPUT_TOPIC + "-value", createOutputIntegerSchema());
     }
 
     private Schema createOutputIntegerSchema() {
@@ -76,23 +78,24 @@ public class ServiceShould extends ServiceTestEnvironmentSetup {
     }
 
     private void assertAvroMessageHasAppliedCast() {
-        assertValueContainsInteger();
-    }
-
-    private void assertValueContainsInteger() {
         ConsumerRecords<String, GenericRecord> records = pollForAvroResults();
         assertEquals(1, records.count());
         ConsumerRecord<String, GenericRecord> outputRecord = records.iterator().next();
+
         assertEquals(orderId, outputRecord.key());
+        assertValueContainsInteger(outputRecord);
+    }
+
+    private void assertValueContainsInteger(ConsumerRecord<String, GenericRecord> outputRecord) {
         GenericRecord value = outputRecord.value();
-        Integer integer = (Integer)value.get("amount");
-        assertEquals(EXPECTED_INTEGER, integer);
+        assertEquals(orderId, value.get("id").toString());
+        assertEquals(expectedInteger, (Integer)value.get("amount"));
     }
 
     private GenericRecord createInputAvroMessage() {
         Schema inputSchema = obtainSchema(INPUT_TOPIC + "-value");
         GenericRecord message = new GenericData.Record(inputSchema);
-        byte[] bytes = new BigInteger("" + EXPECTED_INTEGER).toByteArray();
+        byte[] bytes = new BigInteger("" + expectedInteger).toByteArray();
         ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
         message.put("id", orderId);
         message.put("amount", byteBuffer);
